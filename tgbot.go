@@ -30,10 +30,10 @@ type Sensor []struct {
 
 var mainKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Sensor data🌡️"),
+		tgbotapi.NewKeyboardButton("🌡️Sensor data"),
 	),
 	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Gen Chart"),
+		tgbotapi.NewKeyboardButton("📈Charts"),
 	),
 )
 var graphKeyboard = tgbotapi.NewReplyKeyboard(
@@ -43,8 +43,7 @@ var graphKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButton("15"),
 	),
 	tgbotapi.NewKeyboardButtonRow(
-		//TODO: add "back" emoji
-		tgbotapi.NewKeyboardButton("Back"),
+		tgbotapi.NewKeyboardButton("🔙Back"),
 	),
 )
 
@@ -66,7 +65,7 @@ func main() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil { // ignore non-Message updates
+		if update.Message == nil {
 			continue
 		}
 
@@ -76,18 +75,22 @@ func main() {
 		case "/start":
 			msg.Text = helloMessage()
 			msg.ReplyMarkup = mainKeyboard
+		case "/help":
+			msg.Text = helpMessage()
 		case "/open":
 			msg.ReplyMarkup = mainKeyboard
 		case "/close":
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-		case "Sensor data🌡️":
+		case "🌡️Sensor data":
 			msg.Text = s.sensorData()
-		case "Gen Chart":
+		case "📈Charts":
 			msg.Text = "Choose number of iterations"
 			msg.ReplyMarkup = graphKeyboard
-		case "Back":
+		case "🔙Back":
+			msg.Text = "Choose method"
 			msg.ReplyMarkup = mainKeyboard
 		case "5":
+			msg.Text = "Last 5 updates"
 			m, _ := s.genChart(5)
 			photoBytes, err := ioutil.ReadFile(m)
 			if err != nil {
@@ -97,6 +100,7 @@ func main() {
 			chatID := update.Message.Chat.ID
 			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
 		case "10":
+			msg.Text = "Last 10 updates"
 			m, _ := s.genChart(10)
 			photoBytes, err := ioutil.ReadFile(m)
 			if err != nil {
@@ -106,6 +110,7 @@ func main() {
 			chatID := update.Message.Chat.ID
 			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
 		case "15":
+			msg.Text = "Last 15 updates"
 			m, _ := s.genChart(15)
 			photoBytes, err := ioutil.ReadFile(m)
 			if err != nil {
@@ -132,9 +137,15 @@ func mustToken() string {
 	return *token
 }
 
-//return bot start message as a string
+//return bot START message as a string
 func helloMessage() string {
-	message := "Hello!\nI'm a isesnsor Telegram bot. Press /open to open the keyboard."
+	message := "Hello!👋\nI'm a isesnsor telegram bot.🤖 I can show current information from sensors or build charts from lots of data.\nPrint /help for more information."
+	return message
+}
+
+//return bot HELP message as a string
+func helpMessage() string {
+	message := "This bot was writen in go using open source libraries:\n🤖github.com/go-telegram-bot-api/telegram-bot-api\n📈github.com/wcharczuk/go-chart\n\nIsensor project: github.com/i-sensor"
 	return message
 }
 
