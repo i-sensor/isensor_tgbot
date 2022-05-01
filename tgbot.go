@@ -7,10 +7,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/wcharczuk/go-chart"
 )
 
 const (
@@ -168,4 +170,100 @@ func (s *Sensor) sensorData() string {
 		"🌎" + strconv.Itoa((*s)[0].Pressure) + " Pa\n" +
 		"☀️" + strconv.Itoa((*s)[0].Uv) + " W/m²"
 	return res
+}
+func (s *Sensor) genChart(iterations int) (string, error) {
+	err := s.sensorResponse(iterations)
+	if err != nil {
+		fmt.Errorf("Request error")
+	}
+
+	tX_Values, tY_Values := s.temperatureData(iterations)
+	hX_Values, hY_Values := s.humidityData(iterations)
+	pX_Values, pY_Values := s.pressureData(iterations)
+	uX_Values, uY_Values := s.uvData(iterations)
+
+	graph := chart.Chart{
+		Series: []chart.Series{
+			chart.ContinuousSeries{
+				XValues: tX_Values,
+				YValues: tY_Values,
+			},
+			chart.ContinuousSeries{
+				XValues: pX_Values,
+				YValues: pY_Values,
+			},
+			chart.ContinuousSeries{
+				XValues: hX_Values,
+				YValues: hY_Values,
+			},
+			chart.ContinuousSeries{
+				XValues: uX_Values,
+				YValues: uY_Values,
+			},
+		},
+	}
+
+	filename := "chart.png"
+	f, err := os.Create(filename)
+	if err != nil {
+		fmt.Errorf("Failed to create file: %v: %v", filename, err)
+		return "", err
+	}
+
+	defer f.Close()
+
+	err = graph.Render(chart.PNG, f)
+	if err != nil {
+		fmt.Errorf("Unable to render graph: %v", err)
+		return "", err
+	}
+	return filename, nil
+}
+
+func (s *Sensor) temperatureData(iterations int) (x, y []float64) {
+	x = make([]float64, iterations)
+	for i := range x {
+		x[i] = float64(i)
+	}
+	y = make([]float64, iterations)
+	for i := range y {
+		y[i] = float64((*s)[i].Temperature)
+	}
+	return
+}
+
+func (s *Sensor) humidityData(iterations int) (x, y []float64) {
+	x = make([]float64, iterations)
+	for i := range x {
+		x[i] = float64(i)
+	}
+	y = make([]float64, iterations)
+	for i := range y {
+		y[i] = float64((*s)[i].Humidity)
+	}
+	return
+}
+
+func (s *Sensor) pressureData(iterations int) (x, y []float64) {
+	x = make([]float64, iterations)
+	for i := range x {
+		x[i] = float64(i)
+	}
+	y = make([]float64, iterations)
+	for i := range y {
+		y[i] = float64((*s)[i].Pressure / 10)
+	}
+	return
+}
+
+func (s *Sensor) uvData(iterations int) (x, y []float64) {
+	x = make([]float64, iterations)
+	for i := range x {
+		x[i] = float64(i)
+	}
+	y = make([]float64, iterations)
+	for i := range y {
+		y[i] = float64((*s)[i].Uv)
+	}
+	return
 }
