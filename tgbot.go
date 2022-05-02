@@ -71,6 +71,9 @@ func main() {
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 
+		var timeRange string //use for display time at charts
+		var filePath string  //usr as path to render chart file
+
 		switch update.Message.Text {
 		case "/start":
 			msg.Text = helloMessage()
@@ -90,9 +93,9 @@ func main() {
 			msg.Text = "Choose method"
 			msg.ReplyMarkup = mainKeyboard
 		case "5":
-			msg.Text = "Last 5 updates"
-			m, _ := s.genChart(5)
-			photoBytes, err := ioutil.ReadFile(m)
+			timeRange, filePath, err = s.genChart(5)
+			msg.Text = timeRange
+			photoBytes, err := ioutil.ReadFile(filePath)
 			if err != nil {
 				panic(err)
 			}
@@ -100,9 +103,9 @@ func main() {
 			chatID := update.Message.Chat.ID
 			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
 		case "10":
-			msg.Text = "Last 10 updates"
-			m, _ := s.genChart(10)
-			photoBytes, err := ioutil.ReadFile(m)
+			timeRange, filePath, err = s.genChart(10)
+			msg.Text = timeRange
+			photoBytes, err := ioutil.ReadFile(filePath)
 			if err != nil {
 				panic(err)
 			}
@@ -110,9 +113,9 @@ func main() {
 			chatID := update.Message.Chat.ID
 			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
 		case "15":
-			msg.Text = "Last 15 updates"
-			m, _ := s.genChart(15)
-			photoBytes, err := ioutil.ReadFile(m)
+			timeRange, filePath, err = s.genChart(15)
+			msg.Text = timeRange
+			photoBytes, err := ioutil.ReadFile(filePath)
 			if err != nil {
 				panic(err)
 			}
@@ -176,13 +179,23 @@ func (s *Sensor) sensorData() string {
 	if err != nil {
 		res = "Can't do request"
 	}
+
+	//adapt time
+	local := (*s)[0].Date
+	location, err := time.LoadLocation("Europe/Budapest") //similar to Kyiv (almost^_^)
+	if err == nil {
+		local = local.In(location)
+	}
+
 	res = "🌡️" + strconv.Itoa((*s)[0].Temperature) + " °C\n" +
 		"💧" + strconv.Itoa((*s)[0].Humidity) + " %\n" +
 		"🌎" + strconv.Itoa((*s)[0].Pressure) + " Pa\n" +
-		"☀️" + strconv.Itoa((*s)[0].Uv) + " W/m²"
+		"☀️" + strconv.Itoa((*s)[0].Uv) + " W/m²\n" +
+		"(last update: " + local.Format("02 Jan 06 at 15:04") + ")"
+
 	return res
 }
-func (s *Sensor) genChart(iterations int) (string, error) {
+func (s *Sensor) genChart(iterations int) (string, string, error) {
 	err := s.sensorResponse(iterations)
 	if err != nil {
 		fmt.Errorf("Request error")
@@ -195,6 +208,7 @@ func (s *Sensor) genChart(iterations int) (string, error) {
 
 	graph := chart.Chart{
 		Series: []chart.Series{
+
 			chart.ContinuousSeries{
 				XValues: tX_Values,
 				YValues: tY_Values,
@@ -218,7 +232,7 @@ func (s *Sensor) genChart(iterations int) (string, error) {
 	f, err := os.Create(filename)
 	if err != nil {
 		fmt.Errorf("Failed to create file: %v: %v", filename, err)
-		return "", err
+		return "", "", err
 	}
 
 	defer f.Close()
@@ -226,9 +240,26 @@ func (s *Sensor) genChart(iterations int) (string, error) {
 	err = graph.Render(chart.PNG, f)
 	if err != nil {
 		fmt.Errorf("Unable to render graph: %v", err)
-		return "", err
+		return "", "", err
 	}
-	return filename, nil
+	message := s.timeRange(iterations)
+	return message, filename, nil
+}
+
+func (s *Sensor) timeRange(iterations int) (res string) {
+	//adapt time
+	from := (*s)[0].Date
+	to := (*s)[iterations-1].Date
+	location, err := time.LoadLocation("Europe/Budapest") //similar to Kyiv (almost^_^)
+	if err == nil {
+		from = from.In(location)
+		to = to.In(location)
+	}
+	res = "Last " + strconv.Itoa(iterations) + " updats\n" +
+		"From " + from.Format("02 Jan 06 15:04") +
+		" to " + to.Format("02 Jan 06 15:04")
+
+	return
 }
 
 func (s *Sensor) temperatureData(iterations int) (x, y []float64) {
@@ -274,7 +305,7 @@ func (s *Sensor) uvData(iterations int) (x, y []float64) {
 	}
 	y = make([]float64, iterations)
 	for i := range y {
-		y[i] = float64((*s)[i].Uv)
+		y[i] = float64((*s)[i].Uv * 10)
 	}
 	return
 }
