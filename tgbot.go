@@ -36,6 +36,7 @@ var mainKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButton("📈Charts"),
 	),
 )
+
 var graphKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("5"),
@@ -173,28 +174,21 @@ func (s *Sensor) sensorResponse(limit int) error {
 	return nil
 }
 
-func (s *Sensor) sensorData() string {
-	var res string
+func (s *Sensor) sensorData() (res string) {
 	err := s.sensorResponse(1)
 	if err != nil {
 		res = "Can't do request"
-	}
-
-	//adapt time
-	local := (*s)[0].Date
-	location, err := time.LoadLocation("Europe/Budapest") //similar to Kyiv (almost^_^)
-	if err == nil {
-		local = local.In(location)
 	}
 
 	res = "🌡️" + strconv.Itoa((*s)[0].Temperature) + " °C\n" +
 		"💧" + strconv.Itoa((*s)[0].Humidity) + " %\n" +
 		"🌎" + strconv.Itoa((*s)[0].Pressure) + " Pa\n" +
 		"☀️" + strconv.Itoa((*s)[0].Uv) + " W/m²\n" +
-		"(last update: " + local.Format("02 Jan 06 at 15:04") + ")"
+		"(last update: " + (*s)[0].Date.Format("02 Jan 06 at 15:04") + ")"
 
-	return res
+	return
 }
+
 func (s *Sensor) genChart(iterations int) (string, string, error) {
 	err := s.sensorResponse(iterations)
 	if err != nil {
@@ -247,18 +241,11 @@ func (s *Sensor) genChart(iterations int) (string, string, error) {
 }
 
 func (s *Sensor) timeRange(iterations int) (res string) {
-	//adapt time
 	from := (*s)[0].Date
 	to := (*s)[iterations-1].Date
-	location, err := time.LoadLocation("Europe/Budapest") //similar to Kyiv (almost^_^)
-	if err == nil {
-		from = from.In(location)
-		to = to.In(location)
-	}
 	res = "Last " + strconv.Itoa(iterations) + " updats\n" +
 		"From " + from.Format("02 Jan 06 15:04") +
 		" to " + to.Format("02 Jan 06 15:04")
-
 	return
 }
 
@@ -269,7 +256,7 @@ func (s *Sensor) temperatureData(iterations int) (x, y []float64) {
 	}
 	y = make([]float64, iterations)
 	for i := range y {
-		y[i] = float64((*s)[i].Temperature)
+		y[i] = float64((*s)[i].Temperature * 2)
 	}
 	return
 }
