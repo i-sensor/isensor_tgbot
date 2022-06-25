@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	isesnsorPath = "https://isensor.herokuapp.com/data?limit="
+	isensorPath = "https://isensor.herokuapp.com/data?limit="
 )
 
 type Sensor []struct {
@@ -143,7 +143,7 @@ func mustToken() string {
 
 //return bot START message as a string
 func helloMessage() string {
-	message := "Hello!👋\nI'm a isesnsor telegram bot.🤖 I can show current information from sensors or build charts from lots of data.\nPrint /help for more information."
+	message := "Hello!👋\nI'm a isensor telegram bot.🤖 I can show current information from sensors or build charts from lots of data.\nPrint /help for more information."
 	return message
 }
 
@@ -155,7 +155,7 @@ func helpMessage() string {
 
 //request to isensor API and parse to struct
 func (s *Sensor) sensorResponse(limit int) error {
-	link := isesnsorPath + strconv.Itoa(limit)
+	link := isensorPath + strconv.Itoa(limit)
 	resp, err := http.Get(link)
 	if err != nil {
 		return fmt.Errorf("can't do request")
