@@ -16,7 +16,9 @@ import (
 )
 
 const (
-	isensorPath = "https://isensor.herokuapp.com/data?limit="
+	isensorPath  = "https://isensor.herokuapp.com/data?limit="
+	helloMessage = "Hello!👋\nI'm a isensor telegram bot.🤖 I can show current information from sensors or build charts from lots of data.\nPrint /help for more information."
+	helpMessage  = "Isensor project: github.com/i-sensor\n\nThis bot was writen in go using open source libraries:\n🤖 github.com/go-telegram-bot-api/telegram-bot-api\n📈 github.com/wcharczuk/go-chart"
 )
 
 type Sensor []struct {
@@ -48,6 +50,9 @@ var graphKeyboard = tgbotapi.NewReplyKeyboard(
 	),
 )
 
+var timeRange string //use for display time at charts
+var filePath string  //usr as path to render chart file
+
 func main() {
 	//file := tgbotapi.FilePath("chart.png")
 	s := Sensor{}
@@ -72,15 +77,12 @@ func main() {
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
 
-		var timeRange string //use for display time at charts
-		var filePath string  //usr as path to render chart file
-
 		switch update.Message.Text {
 		case "/start":
-			msg.Text = helloMessage()
+			msg.Text = helloMessage
 			msg.ReplyMarkup = mainKeyboard
 		case "/help":
-			msg.Text = helpMessage()
+			msg.Text = helpMessage
 		case "/open":
 			msg.ReplyMarkup = mainKeyboard
 		case "/close":
@@ -94,35 +96,20 @@ func main() {
 			msg.Text = "Choose method"
 			msg.ReplyMarkup = mainKeyboard
 		case "5":
-			timeRange, filePath, err = s.genChart(5)
-			msg.Text = timeRange
-			photoBytes, err := ioutil.ReadFile(filePath)
-			if err != nil {
-				panic(err)
-			}
-			photoFileBytes := tgbotapi.FileBytes{Name: "picture", Bytes: photoBytes}
-			chatID := update.Message.Chat.ID
-			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
+			s.sendChart(5, bot, update, msg)
 		case "10":
-			timeRange, filePath, err = s.genChart(10)
-			msg.Text = timeRange
-			photoBytes, err := ioutil.ReadFile(filePath)
-			if err != nil {
-				panic(err)
-			}
-			photoFileBytes := tgbotapi.FileBytes{Name: "picture", Bytes: photoBytes}
-			chatID := update.Message.Chat.ID
-			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
+			s.sendChart(10, bot, update, msg)
 		case "15":
-			timeRange, filePath, err = s.genChart(15)
-			msg.Text = timeRange
-			photoBytes, err := ioutil.ReadFile(filePath)
-			if err != nil {
-				panic(err)
-			}
-			photoFileBytes := tgbotapi.FileBytes{Name: "picture", Bytes: photoBytes}
-			chatID := update.Message.Chat.ID
-			_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
+			//timeRange, filePath, err = s.genChart(15)
+			//msg.Text = timeRange
+			//photoBytes, err := ioutil.ReadFile(filePath)
+			//if err != nil {
+			//panic(err)
+			//}
+			//photoFileBytes := tgbotapi.FileBytes{Name: "picture", Bytes: photoBytes}
+			//chatID := update.Message.Chat.ID
+			//_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
+			s.sendChart(15, bot, update, msg)
 		}
 		if _, err := bot.Send(msg); err != nil {
 			log.Panic(err)
@@ -130,7 +117,7 @@ func main() {
 	}
 }
 
-//parses the flags and return the token
+// Parses the flags and return the token
 func mustToken() string {
 	token := flag.String("token", "", "token for access to Telegram bot")
 
@@ -141,19 +128,25 @@ func mustToken() string {
 	return *token
 }
 
-//return bot START message as a string
-func helloMessage() string {
-	message := "Hello!👋\nI'm a isensor telegram bot.🤖 I can show current information from sensors or build charts from lots of data.\nPrint /help for more information."
-	return message
+func (s *Sensor) sendChart(iter int, bot *tgbotapi.BotAPI, update tgbotapi.Update, msg tgbotapi.MessageConfig) error {
+	timeRange, filePath, err := s.genChart(10)
+	msg.Text = timeRange
+	photoBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	photoFileBytes := tgbotapi.FileBytes{Name: "picture", Bytes: photoBytes}
+	chatID := update.Message.Chat.ID
+	_, err = bot.Send(tgbotapi.NewPhoto(int64(chatID), photoFileBytes))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-//return bot HELP message as a string
-func helpMessage() string {
-	message := "This bot was writen in go using open source libraries:\n🤖github.com/go-telegram-bot-api/telegram-bot-api\n📈github.com/wcharczuk/go-chart\n\nIsensor project: github.com/i-sensor"
-	return message
-}
-
-//request to isensor API and parse to struct
+// Request to isensor API and parse response to struct
 func (s *Sensor) sensorResponse(limit int) error {
 	link := isensorPath + strconv.Itoa(limit)
 	resp, err := http.Get(link)
@@ -174,6 +167,7 @@ func (s *Sensor) sensorResponse(limit int) error {
 	return nil
 }
 
+// Generate ourput for telegram message
 func (s *Sensor) sensorData() (res string) {
 	err := s.sensorResponse(1)
 	if err != nil {
